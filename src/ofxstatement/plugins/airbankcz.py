@@ -9,7 +9,7 @@ from ofxstatement.statement import Statement
 
 
 class AirBankCZPlugin(Plugin):
-    """Airbank CZ plugin (UTF-8)
+    """Airbank a.s. (CZ) plugin (CSV, UTF-8)
     Note that it cannot deal with fee ("Poplatek v měně účtu"), which is ignored for now
     """
 
