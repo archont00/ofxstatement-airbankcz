@@ -9,8 +9,9 @@ from ofxstatement.statement import Statement
 
 
 class AirBankCZPlugin(Plugin):
-    """Airbank a.s. (CZ) plugin (CSV, UTF-8)
-    Note that it cannot deal with fee ("Poplatek v měně účtu"), which is ignored for now
+    """Air Bank a.s. (Czech Republic) (CSV, UTF-8)
+    Note that the current version silently ignores column 06
+    ("Poplatek v měně účtu" - extra fee).
     """
 
     def get_parser(self, filename):
@@ -23,64 +24,63 @@ class AirBankCZPlugin(Plugin):
         parser.statement.account_id = self.settings.get('account', '')
         parser.statement.account_type = self.settings.get('account_type', 'CHECKING')
         parser.statement.trntype = "OTHER"
-        return AirBankCZParser(filename)
+        return parser
 
 
 class AirBankCZParser(CsvStatementParser):
 
     # The columns are:
-    # 01 Datum provedení
-    # 02 Směr platby
-    # 03 Typ platby
-    # 04 Skupina plateb
-    # 05 Měna účtu
-    # 06 Částka v měně účtu
-    # 07 Poplatek v měně účtu
-    # 08 Původní měna platby
-    # 09 Původní částka platby
-    # 10 Název protistrany
-    # 11 Číslo účtu protistrany
-    # 12 Název účtu protistrany
-    # 13 Variabilní symbol
-    # 14 Konstantní symbol
-    # 15 Specifický symbol
-    # 16 Zdrojová obálka
-    # 17 Cílová obálka
-    # 18 Poznámka pro mne
-    # 19 Zpráva pro příjemce
-    # 20 Poznámka k platbě
-    # 21 Název karty
-    # 22 Číslo karty
-    # 23 Držitel karty
-    # 24 Obchodní místo
-    # 25 Směnný kurz
-    # 26 Odesílatel poslal
-    # 27 Poplatky jiných bank
-    # 28 Datum a čas zadání
-    # 29 Datum splatnosti
-    # 30 Datum schválení
-    # 31 Datum zaúčtování
-    # 32 Referenční číslo
-    # 33 Způsob zadání
-    # 34 Zadal
-    # 35 Zaúčtováno
-    # 36 Pojmenování příkazu
-    # 37 Název, adresa a stát protistrany
-    # 38 Název, adresa a stát banky protistrany
-    # 39 Typ poplatku
-    # 40 Účel platby
-    # 41 Zvláštní pokyny k platbě
-    # 42 Související platby
+    # 00 Datum provedení
+    # 01 Směr platby
+    # 02 Typ platby
+    # 03 Skupina plateb
+    # 04 Měna účtu
+    # 05 Částka v měně účtu
+    # 06 Poplatek v měně účtu
+    # 07 Původní měna platby
+    # 08 Původní částka platby
+    # 09 Název protistrany
+    # 10 Číslo účtu protistrany
+    # 11 Název účtu protistrany
+    # 12 Variabilní symbol
+    # 13 Konstantní symbol
+    # 14 Specifický symbol
+    # 15 Zdrojová obálka
+    # 16 Cílová obálka
+    # 17 Poznámka pro mne
+    # 18 Zpráva pro příjemce
+    # 19 Poznámka k platbě
+    # 20 Název karty
+    # 21 Číslo karty
+    # 22 Držitel karty
+    # 23 Obchodní místo
+    # 24 Směnný kurz
+    # 25 Odesílatel poslal
+    # 26 Poplatky jiných bank
+    # 27 Datum a čas zadání
+    # 28 Datum splatnosti
+    # 29 Datum schválení
+    # 30 Datum zaúčtování
+    # 31 Referenční číslo
+    # 32 Způsob zadání
+    # 33 Zadal
+    # 34 Zaúčtováno
+    # 35 Pojmenování příkazu
+    # 36 Název, adresa a stát protistrany
+    # 37 Název, adresa a stát banky protistrany
+    # 38 Typ poplatku
+    # 39 Účel platby
+    # 40 Zvláštní pokyny k platbě
+    # 41 Související platby
 
-    mappings = {"date_user": 31,
-                "date": 1,
-                "memo": 20,
-                "payee": 10,
-                "amount": 6,
-                "check_no": 13,
-                "refnum": 32, }
+    mappings = {"date": 0,
+                "memo": 19,
+                "payee": 9,
+                "amount": 5,
+                "check_no": 12,
+                "refnum": 31, }
 
-    date_format = "%d/%m/Y"
+    date_format = "%d/%m/%Y"
 
     def split_records(self):
         """Return iterable object consisting of a line per transaction
@@ -97,7 +97,15 @@ class AirBankCZParser(CsvStatementParser):
             return None
 
         StatementLine = super(AirBankCZParser, self).parse_record(line)
-        StatementLine.date_user = datetime.strptime(StatementLine.date_user, self.date_format)
+
+        # Ignore lines, which do not have posting date yet (typically pmts by debet cards
+        # have some delays.
+        if not line[30]:
+            return None
+        else:
+            StatementLine.date_user = line[30]
+            StatementLine.date_user = datetime.strptime(StatementLine.date_user, self.date_format)
+
         StatementLine.id = statement.generate_transaction_id(StatementLine)
 
         # Manually set some of the known transaction types
@@ -113,31 +121,20 @@ class AirBankCZParser(CsvStatementParser):
         # When .payee is empty, GnuCash imports .memo to "Description" and keeps "Notes" empty
 
         # StatementLine.payee = "Název protistrany" + "Číslo účtu protistrany"
-        if not line[11]:
-            StatementLine.payee = StatementLine.payee + line[11]
+        if not line[10]:
+            StatementLine.payee = StatementLine.payee + line[10]
 
         # StatementLine.memo = "Poznámka k platbě" + the payment identifiers
-        if not line[13]:
-            StatementLine.memo = sl.memo + "|VS: " + line[13]
-        if not line[14]:
-            StatementLine.memo = sl.memo + "|KS: " + line[14]
-        if not line[15]:
-            StatementLine.memo = sl.memo + "|SS: " + line[15]
+        if not (line[12] == "" or line[12] == " "):
+            StatementLine.memo = StatementLine.memo + "|VS: " + line[12]
+
+        if not (line[13] == "" or line[13] == " "):
+            StatementLine.memo = StatementLine.memo + "|KS: " + line[13]
+
+        if not (line[14] == "" or line[14] == " "):
+            StatementLine.memo = StatementLine.memo + "|SS: " + line[14]
 
         if StatementLine.amount == 0:
             return None
 
         return StatementLine
-
-    def __init__(self, filename):
-        self.filename = filename
-
-    def parse(self):
-        """Main entry point for parsers
-
-        super() implementation will call to split_records and parse_record to
-        process the file.
-        """
-        with open(self.filename, "r") as f:
-            self.input = f
-            return super(AirBankCZParser, self).parse()
