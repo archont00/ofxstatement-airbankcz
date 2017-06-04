@@ -1,0 +1,38 @@
+# Contributor: Milan Knížek <knizek@volny.cz>
+
+pkgname=ofxstatement-airbankcz-git
+_gitname=ofxstatement-airbankcz
+pkgver=release=0.0.1.r0.gc9bc6d5
+pkgrel=1
+pkgdesc='A plugin for ofxstatement to convert Air Bank a.s. (CZ) current and saving account transaction history (CSV) to OFX.'
+arch=('any')
+url="https://github.com/milankni/ofxstatement-airbankcz"
+license=('GPL3')
+depends=('python' 'ofxstatement')
+makedepends=(git)
+source=(git://github.com/milankni/$_gitname.git)
+md5sums=('SKIP')
+
+pkgver() {
+  cd $_gitname
+  git clean -dfx > /dev/null 2>&1
+  git reset --hard > /dev/null 2>&1
+#  if you want a specific commit or branch... just put it here
+#  git checkout 441a3b44df770578240c1774b29d373aa4a08bb8 > /dev/null 2>&1
+  git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+
+build() {
+ # empty
+ echo
+}
+
+package() {
+  cd ${srcdir}/$_gitname
+
+  # build & package
+  python setup.py install --root=${pkgdir}/ --optimize=1
+}
+
+# vim:set ts=2 sw=2 et:
