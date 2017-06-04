@@ -12,7 +12,7 @@ Usage:
 
     ofxstatement convert -t airbankcz airbank_1102207023_2017-06-04_12-42.csv airbank_1102207023_2017-06-04_12-42.ofx
 
-    ofxstatement convert -t airbank:EUR airbank_1102207023_2017-06-04_12-42.csv airbank_1102207023_2017-06-04_12-42.ofx
+    ofxstatement convert -t airbankcz:EUR airbank_1102207023_2017-06-04_12-42.csv airbank_1102207023_2017-06-04_12-42.ofx
 
 Configuration:
 
