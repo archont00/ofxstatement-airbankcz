@@ -10,11 +10,15 @@ from ofxstatement.statement import Statement
 
 class AirBankCZPlugin(Plugin):
     """Air Bank a.s. (Czech Republic) (CSV, UTF-8)
-    Note that the current version silently ignores column 06
-    ("Poplatek v měně účtu" - extra fee).
+    NB: if there are any transaction related fees (column 06), a new CSV
+        file is created and it has to be processed again:
+        $ ofxstatement convert -t airbankcz in-fees.csv out-fees.ofx
     """
 
     def get_parser(self, filename):
+        # .csvfile is a work-around and is used for exporting fees to a new CSV file
+        AirBankCZPlugin.csvfile = re.sub(".csv", "", filename) + "-fees.csv"
+
         # Encoding may be set in Air Bank internet banking (Settings / Applications)
         AirBankCZPlugin.encoding = self.settings.get('charset', 'utf-8')
         f = open(filename, "r", encoding=AirBankCZPlugin.encoding)
@@ -93,8 +97,19 @@ class AirBankCZParser(CsvStatementParser):
         """
 
         # Ignore the 1st line of CSV
-        if self.cur_record <= 1:
+        if self.cur_record == 1:
+            # Create a heading line for the -fees.csv file
+            with open(AirBankCZPlugin.csvfile, "w", encoding=AirBankCZPlugin.encoding) as output:
+                writer = csv.writer(output, lineterminator='\n', delimiter=',', quotechar='"')
+                writer.writerow(line)
+                output.close()
+            # And skip further processing by parser
             return None
+
+        if line[5] == '':
+            line[5] = "0"
+        if line[6] == '':
+            line[6] = "0"
 
         StatementLine = super(AirBankCZParser, self).parse_record(line)
 
@@ -133,6 +148,28 @@ class AirBankCZParser(CsvStatementParser):
 
         if not (line[14] == "" or line[14] == " "):
             StatementLine.memo = StatementLine.memo + "|SS: " + line[14]
+
+        # Some type of fee is standalone, not related to transaction amount. Add it to amount field.only
+        if float(line[6]) != 0 and StatementLine.amount == 0:
+            StatementLine.amount = float(line[6])
+
+        # Air Bank may show various fees on the same line  as the underlying transaction
+        # For now, we simply create a new CSV file with the fee (and only the fee) moved to line[5].
+        # This new file -fees.csv needs to be processed again manually:
+        #     $ ofxstatement convert -t raiffeisencz in-fees.csv out-fees.ofx
+
+        # ToDo: instead of exporting the above to CSV, try to add the exportline to
+        #       the end of statement (from imported input.csv).
+        if float(line[6]) != 0 and StatementLine.amount != 0:
+            exportline = line[:]
+            exportline[5] = line[6]
+            exportline[6] = ''
+            exportline[3] = "Poplatek za transakci"
+            exportline[19] = "Poplatek: " + exportline[19]
+
+            with open(AirBankCZPlugin.csvfile, "a", encoding=AirBankCZPlugin.encoding) as output:
+                writer = csv.writer(output, lineterminator='\n', delimiter=',', quotechar='"')
+                writer.writerow(exportline)
 
         if StatementLine.amount == 0:
             return None
