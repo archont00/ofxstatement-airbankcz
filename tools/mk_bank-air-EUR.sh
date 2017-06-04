@@ -28,8 +28,8 @@ if [[ ! -f "${1}" ]]; then
   exit 1
 fi
 
-inputf="$(basename ${1} .csv)"
-inputd="$(dirname ${1})"
+inputf="$(basename "${1}" .csv)"
+inputd="$(dirname "${1}")"
 
 # Run ofxstatement 
 ofxstatement convert -t airbankcz:EUR "${1}" "${inputd}/${inputf}.ofx" \
@@ -43,8 +43,11 @@ mv "${inputd}/${tmpf}" "${inputd}/${inputf}.ofx"
 feesf="${inputd}/${inputf}-fees.csv"
 if [[ -f "${feesf}" ]]; then
   if [[ $(cat "${feesf}" | wc -l) -gt 1 ]]; then
-    ofxstatement convert -t airbankcz:EUR "${feesf}" "${feesf}.ofx" \
+    ofxstatement convert -t airbankcz:EUR "${feesf}" "${inputd}/${inputf}-fees.ofx" \
       || { echo "ofxstatement 2 failed."; exit 1; }
   fi
-  rm "${feesf}"
+  rm "${feesf}" "${inputd}/${inputf}-fees-fees.csv"
+  tmpf="$(uuidgen)"
+  cat "${inputd}/${inputf}-fees.ofx" | xmllint --format - > "${inputd}/${tmpf}"
+  mv "${inputd}/${tmpf}" "${inputd}/${inputf}-fees.ofx"
 fi
