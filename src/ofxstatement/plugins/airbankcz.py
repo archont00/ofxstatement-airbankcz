@@ -126,10 +126,24 @@ class AirBankCZParser(CsvStatementParser):
         # Manually set some of the known transaction types
         if line[3].startswith("Daň z úroku"):
             StatementLine.trntype = "DEBIT"
-        if line[3].startswith("Kreditní úrok"):
+        elif line[3].startswith("Kreditní úrok"):
             StatementLine.trntype = "INT"
-        if line[3].startswith("Poplatek za "):
+        elif line[3].startswith("Poplatek za "):
             StatementLine.trntype = "FEE"
+        elif line[3].startswith("Příchozí platba"):
+            StatementLine.trntype = "XFER"
+        elif line[3].startswith("Odchozí platba"):
+            StatementLine.trntype = "XFER"
+        elif line[3].startswith("Výběr hotovosti"):
+            StatementLine.trntype = "ATM"
+        elif line[3].startswith("Platba kartou"):
+            StatementLine.trntype = "POS"
+        elif line[3].startswith("Inkaso"):
+            StatementLine.trntype = "DIRECTDEBIT"
+        elif line[3].startswith("Trvalý"):
+            StatementLine.trntype = "REPEATPMT"
+        else:
+            StatementLine.trntype = "XFER"
 
         # .payee is imported as "Description" in GnuCash
         # .memo  is imported as "Notes"       in GnuCash
