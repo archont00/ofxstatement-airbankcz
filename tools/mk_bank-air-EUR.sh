@@ -37,7 +37,7 @@ ofxstatement convert -t airbankcz:EUR "${1}" "${inputd}/${inputf}.ofx" \
 
 
 tmpf="$(uuidgen)"
-cat "${inputd}/${inputf}.ofx" | xmllint --format - > "${inputd}/${tmpf}"
+cat "${inputd}/${inputf}.ofx" | xmllint --format --encode UTF-8 - > "${inputd}/${tmpf}"
 mv "${inputd}/${tmpf}" "${inputd}/${inputf}.ofx"
 
 feesf="${inputd}/${inputf}-fees.csv"
@@ -48,6 +48,6 @@ if [[ -f "${feesf}" ]]; then
   fi
   rm "${feesf}" "${inputd}/${inputf}-fees-fees.csv"
   tmpf="$(uuidgen)"
-  cat "${inputd}/${inputf}-fees.ofx" | xmllint --format - > "${inputd}/${tmpf}"
+  cat "${inputd}/${inputf}-fees.ofx" | xmllint --format --encode UTF-8 - > "${inputd}/${tmpf}"
   mv "${inputd}/${tmpf}" "${inputd}/${inputf}-fees.ofx"
 fi
