@@ -151,7 +151,7 @@ class AirBankCZParser(CsvStatementParser):
 
         # StatementLine.payee = "Název protistrany" + "Číslo účtu protistrany"
         if not line[10] == "":
-            StatementLine.payee = StatementLine.payee + line[10]
+            StatementLine.payee = StatementLine.payee + "|ÚČ: " + line[10]
 
         # StatementLine.memo = "Poznámka k platbě" + the payment identifiers
         if not (line[12] == "" or line[12] == " "):
@@ -162,6 +162,9 @@ class AirBankCZParser(CsvStatementParser):
 
         if not (line[14] == "" or line[14] == " "):
             StatementLine.memo = StatementLine.memo + "|SS: " + line[14]
+
+        if not (line[20] == "" or line[20] == " "):
+            StatementLine.memo = StatementLine.memo + "|Název karty: " + line[20]
 
         # Some type of fee is standalone, not related to transaction amount. Add it to amount field.only
         if float(line[6]) != 0 and StatementLine.amount == 0:
