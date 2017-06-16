@@ -124,23 +124,23 @@ class AirBankCZParser(CsvStatementParser):
         StatementLine.id = statement.generate_transaction_id(StatementLine)
 
         # Manually set some of the known transaction types
-        if line[3].startswith("Daň z úroku"):
+        if line[2].startswith("Daň z úroku"):
             StatementLine.trntype = "DEBIT"
-        elif line[3].startswith("Kreditní úrok"):
+        elif line[2].startswith("Kreditní úrok"):
             StatementLine.trntype = "INT"
-        elif line[3].startswith("Poplatek za "):
+        elif line[2].startswith("Poplatek za "):
             StatementLine.trntype = "FEE"
-        elif line[3].startswith("Příchozí platba"):
+        elif line[2].startswith("Příchozí platba"):
             StatementLine.trntype = "XFER"
-        elif line[3].startswith("Odchozí platba"):
+        elif line[2].startswith("Odchozí platba"):
             StatementLine.trntype = "XFER"
-        elif line[3].startswith("Výběr hotovosti"):
+        elif line[2].startswith("Výběr hotovosti"):
             StatementLine.trntype = "ATM"
-        elif line[3].startswith("Platba kartou"):
+        elif line[2].startswith("Platba kartou"):
             StatementLine.trntype = "POS"
-        elif line[3].startswith("Inkaso"):
+        elif line[2].startswith("Inkaso"):
             StatementLine.trntype = "DIRECTDEBIT"
-        elif line[3].startswith("Trvalý"):
+        elif line[2].startswith("Trvalý"):
             StatementLine.trntype = "REPEATPMT"
         else:
             StatementLine.trntype = "XFER"
