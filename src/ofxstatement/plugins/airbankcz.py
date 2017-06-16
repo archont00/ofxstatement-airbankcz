@@ -145,8 +145,8 @@ class AirBankCZParser(CsvStatementParser):
         else:
             StatementLine.trntype = "XFER"
 
-        # .payee is imported as "Description" in GnuCash
-        # .memo  is imported as "Notes"       in GnuCash
+        # .payee becomes OFX.NAME which becomes "Description" in GnuCash
+        # .memo  becomes OFX.MEMO which becomes "Notes"       in GnuCash
         # When .payee is empty, GnuCash imports .memo to "Description" and keeps "Notes" empty
 
         # StatementLine.payee = "Název protistrany" + "Číslo účtu protistrany"
