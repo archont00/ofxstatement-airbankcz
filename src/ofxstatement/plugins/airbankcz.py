@@ -114,7 +114,7 @@ class AirBankCZParser(CsvStatementParser):
         StatementLine = super(AirBankCZParser, self).parse_record(line)
 
         # Ignore lines, which do not have posting date yet (typically pmts by debet cards
-        # have some delays.
+        # have some delays).
         if not line[30]:
             return None
         else:
