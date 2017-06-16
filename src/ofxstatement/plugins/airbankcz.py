@@ -150,7 +150,7 @@ class AirBankCZParser(CsvStatementParser):
         # When .payee is empty, GnuCash imports .memo to "Description" and keeps "Notes" empty
 
         # StatementLine.payee = "Název protistrany" + "Číslo účtu protistrany"
-        if not line[10]:
+        if not line[10] == "":
             StatementLine.payee = StatementLine.payee + line[10]
 
         # StatementLine.memo = "Poznámka k platbě" + the payment identifiers
