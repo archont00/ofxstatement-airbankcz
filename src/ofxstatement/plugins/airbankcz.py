@@ -32,12 +32,12 @@ class AirBankCZPlugin(Plugin):
 
 
 class AirBankCZParser(CsvStatementParser):
+    date_format = "%d/%m/%Y"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, *kwargs)
         self.columns = None
-
-    date_format = "%d/%m/%Y"
+        self.mappings = None
 
     def split_records(self):
         """Return iterable object consisting of a line per transaction
@@ -59,11 +59,22 @@ class AirBankCZParser(CsvStatementParser):
 
                 # Prepare columns headers lookup table for parsing
                 self.columns = {v: i for i,v in enumerate(line)}
+                self.mappings = {
+                    "date": self.columns['Datum provedení'],
+                    "memo": self.columns['Poznámka k platbě'],
+                    "payee": self.columns['Název protistrany'],
+                    "amount": self.columns['Částka v měně účtu'],
+                    "check_no": self.columns['Variabilní symbol'],
+                    "refnum": self.columns['Referenční číslo'],
+                }
             # And skip further processing by parser
             return None
 
         # shortcut
         columns = self.columns
+
+        #Normalize string
+        line = list(map(lambda s: s.strip() if isinstance(s, str) else s, line))
 
 
         if line[columns["Částka v měně účtu"]] == '':
@@ -111,21 +122,21 @@ class AirBankCZParser(CsvStatementParser):
         # When .payee is empty, GnuCash imports .memo to "Description" and keeps "Notes" empty
 
         # StatementLine.payee = "Název protistrany" + "Číslo účtu protistrany"
-        if not line[columns["Číslo účtu protistrany"]] == "":
-            StatementLine.payee = StatementLine.payee + "|ÚČ: " + line[columns["Číslo účtu protistrany"]]
+        if line[columns["Číslo účtu protistrany"]] != "":
+            StatementLine.payee += "|ÚČ: " + line[columns["Číslo účtu protistrany"]]
 
         # StatementLine.memo = "Poznámka k platbě" + the payment identifiers
-        if not (line[12] == "" or line[columns["Variabilní symbol"]] == " "):
-            StatementLine.memo = StatementLine.memo + "|VS: " + line[columns["Variabilní symbol"]]
+        if line[columns["Variabilní symbol"]] != "":
+            StatementLine.memo += "|VS: " + line[columns["Variabilní symbol"]]
 
-        if not (line[13] == "" or line[columns["Konstantní symbol"]] == " "):
-            StatementLine.memo = StatementLine.memo + "|KS: " + line[columns["Konstantní symbol"]]
+        if line[columns["Konstantní symbol"]] != "":
+            StatementLine.memo += "|KS: " + line[columns["Konstantní symbol"]]
 
-        if not (line[14] == "" or line[columns["Specifický symbol"]] == " "):
-            StatementLine.memo = StatementLine.memo + "|SS: " + line[columns["Specifický symbol"]]
+        if line[columns["Specifický symbol"]] != "":
+            StatementLine.memo += "|SS: " + line[columns["Specifický symbol"]]
 
-        if not (line[20] == "" or line[columns["Název karty"]] == " "):
-            StatementLine.memo = StatementLine.memo + "|Název karty: " + line[columns["Název karty"]]
+        if line[columns["Název karty"]] != "":
+            StatementLine.memo += "|Název karty: " + line[columns["Název karty"]]
 
         # Some type of fee is standalone, not related to transaction amount. Add it to amount field.only
         if float(line[columns["Poplatek v měně účtu"]]) != 0 and StatementLine.amount == 0:
@@ -139,11 +150,11 @@ class AirBankCZParser(CsvStatementParser):
         # ToDo: instead of exporting the above to CSV, try to add the exportline to
         #       the end of statement (from imported input.csv).
         if float(line[columns["Poplatek v měně účtu"]]) != 0 and StatementLine.amount != 0:
-            exportline = line[:]
-            exportline[5] = line[columns["Poplatek v měně účtu"]]
-            exportline[6] = ''
-            exportline[3] = "Poplatek za transakci"
-            exportline[19] = "Poplatek: " + exportline[19]
+            exportline = list(line)
+            exportline[columns['Částka v měně účtu']] = exportline[columns["Poplatek v měně účtu"]]
+            exportline[columns['Poplatek v měně účtu']] = ''
+            exportline[columns['Skupina plateb']] = "Poplatek za transakci"
+            exportline[columns["Poplatek v měně účtu"]] = "Poplatek: " + exportline[columns["Poplatek v měně účtu"]]
 
             with open(AirBankCZPlugin.csvfile, "a", encoding=AirBankCZPlugin.encoding) as output:
                 writer = csv.writer(output, lineterminator='\n', delimiter=',', quotechar='"')
