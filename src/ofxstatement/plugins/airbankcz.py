@@ -33,62 +33,9 @@ class AirBankCZPlugin(Plugin):
 
 class AirBankCZParser(CsvStatementParser):
 
-    # The columns are:
-    columns = {
-        "Datum provedení": 0,
-        "Směr platby": 1,
-        "Typ platby": 2,
-        "Skupina plateb": 3,
-        "Měna účtu": 4,
-        "Částka v měně účtu": 5,
-        "Poplatek v měně účtu": 6,
-        "Původní měna platby": 7,
-        "Původní částka platby": 8,
-        "Název protistrany": 9,
-        "Číslo účtu protistrany": 10,
-        "Název účtu protistrany": 11,
-        "Variabilní symbol": 12,
-        "Konstantní symbol": 13,
-        "Specifický symbol": 14,
-        "Zdrojová obálka": 15,
-        "Cílová obálka": 16,
-        "Poznámka pro mne": 17,
-        "Zpráva pro příjemce": 18,
-        "Poznámka k platbě": 19,
-        "Název karty": 20,
-        "Číslo karty": 21,
-        "Držitel karty": 22,
-        "Platba mobilem": 23,
-        "Obchodní místo": 24,
-        "Směnný kurz": 25,
-        "Odesílatel poslal": 26,
-        "Poplatky jiných bank": 27,
-        "Datum a čas zadání": 28,
-        "Datum splatnosti": 29,
-        "Datum schválení": 30,
-        "Datum zaúčtování": 31,
-        "Referenční číslo": 32,
-        "Způsob zadání": 33,
-        "Zadal": 34,
-        "Zaúčtováno": 35,
-        "Pojmenování příkazu": 36,
-        "Název, adresa a stát protistrany": 37,
-        "Název, adresa a stát banky protistrany": 38,
-        "Typ poplatku": 39,
-        "Účel platby": 40,
-        "Zvláštní pokyny k platbě": 41,
-        "Související platby": 42,
-        "Identifikace SEPA platby": 43,
-    }
-
-    
-
-    mappings = {"date": 0,
-                "memo": 19,
-                "payee": 9,
-                "amount": 5,
-                "check_no": 12,
-                "refnum": 31, }
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, *kwargs)
+        self.columns = None
 
     date_format = "%d/%m/%Y"
 
@@ -102,9 +49,6 @@ class AirBankCZParser(CsvStatementParser):
         """Parse given transaction line and return StatementLine object
         """
 
-        # shortcut
-        columns = AirBankCZParser.columns
-
         # Ignore the 1st line of CSV
         if self.cur_record == 1:
             # Create a heading line for the -fees.csv file
@@ -112,13 +56,20 @@ class AirBankCZParser(CsvStatementParser):
                 writer = csv.writer(output, lineterminator='\n', delimiter=',', quotechar='"')
                 writer.writerow(line)
                 output.close()
+
+                # Prepare columns headers lookup table for parsing
+                self.columns = {v: i for i,v in enumerate(line)}
             # And skip further processing by parser
             return None
 
-        if line[5] == '':
-            line[5] = "0"
-        if line[6] == '':
-            line[6] = "0"
+        # shortcut
+        columns = self.columns
+
+
+        if line[columns["Částka v měně účtu"]] == '':
+            line[columns["Částka v měně účtu"]] = "0"
+        if line[columns["Poplatek v měně účtu"]] == '':
+            line[columns["Poplatek v měně účtu"]] = "0"
 
         StatementLine = super(AirBankCZParser, self).parse_record(line)
 
