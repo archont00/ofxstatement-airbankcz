@@ -143,9 +143,9 @@ class AirBankCZParser(CsvStatementParser):
             StatementLine.amount = float(line[columns["Poplatek v měně účtu"]])
 
         # Air Bank may show various fees on the same line  as the underlying transaction
-        # For now, we simply create a new CSV file with the fee (and only the fee) moved to line[5].
+        # For now, we simply create a new CSV file with the fee amount moved to "Částka v měně účtu".
         # This new file -fees.csv needs to be processed again manually:
-        #     $ ofxstatement convert -t raiffeisencz in-fees.csv out-fees.ofx
+        #     $ ofxstatement convert -t airbankcz in-fees.csv out-fees.ofx
 
         # ToDo: instead of exporting the above to CSV, try to add the exportline to
         #       the end of statement (from imported input.csv).
