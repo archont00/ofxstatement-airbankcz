@@ -153,6 +153,7 @@ class AirBankCZParser(CsvStatementParser):
             exportline = list(line)
             exportline[columns['Částka v měně účtu']] = exportline[columns["Poplatek v měně účtu"]]
             exportline[columns['Poplatek v měně účtu']] = ''
+            exportline[columns['Původní částka platby']] = ''
             exportline[columns['Skupina plateb']] = "Poplatek za transakci"
             exportline[columns["Poznámka k platbě"]] = "Poplatek: " + exportline[columns["Poznámka k platbě"]]
 
