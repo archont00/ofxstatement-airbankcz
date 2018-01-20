@@ -154,7 +154,7 @@ class AirBankCZParser(CsvStatementParser):
             exportline[columns['Částka v měně účtu']] = exportline[columns["Poplatek v měně účtu"]]
             exportline[columns['Poplatek v měně účtu']] = ''
             exportline[columns['Skupina plateb']] = "Poplatek za transakci"
-            exportline[columns["Poplatek v měně účtu"]] = "Poplatek: " + exportline[columns["Poplatek v měně účtu"]]
+            exportline[columns["Poznámka k platbě"]] = "Poplatek: " + exportline[columns["Poznámka k platbě"]]
 
             with open(AirBankCZPlugin.csvfile, "a", encoding=AirBankCZPlugin.encoding) as output:
                 writer = csv.writer(output, lineterminator='\n', delimiter=',', quotechar='"')
