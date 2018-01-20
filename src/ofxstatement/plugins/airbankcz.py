@@ -5,7 +5,6 @@ import re
 from ofxstatement import statement
 from ofxstatement.parser import CsvStatementParser
 from ofxstatement.plugin import Plugin
-from ofxstatement.statement import Statement
 
 
 class AirBankCZPlugin(Plugin):
@@ -49,24 +48,18 @@ class AirBankCZParser(CsvStatementParser):
         """Parse given transaction line and return StatementLine object
         """
 
-        # Ignore the 1st line of CSV
+        # First line of CSV file contains headers, not an actual transaction
         if self.cur_record == 1:
-            # Create a heading line for the -fees.csv file
-            with open(AirBankCZPlugin.csvfile, "w", encoding=AirBankCZPlugin.encoding) as output:
-                writer = csv.writer(output, lineterminator='\n', delimiter=',', quotechar='"')
-                writer.writerow(line)
-                output.close()
-
-                # Prepare columns headers lookup table for parsing
-                self.columns = {v: i for i,v in enumerate(line)}
-                self.mappings = {
-                    "date": self.columns['Datum provedení'],
-                    "memo": self.columns['Poznámka k platbě'],
-                    "payee": self.columns['Název protistrany'],
-                    "amount": self.columns['Částka v měně účtu'],
-                    "check_no": self.columns['Variabilní symbol'],
-                    "refnum": self.columns['Referenční číslo'],
-                }
+            # Prepare columns headers lookup table for parsing
+            self.columns = {v: i for i,v in enumerate(line)}
+            self.mappings = {
+                "date": self.columns['Datum provedení'],
+                "memo": self.columns['Poznámka k platbě'],
+                "payee": self.columns['Název protistrany'],
+                "amount": self.columns['Částka v měně účtu'],
+                "check_no": self.columns['Variabilní symbol'],
+                "refnum": self.columns['Referenční číslo'],
+            }
             # And skip further processing by parser
             return None
 
@@ -74,8 +67,8 @@ class AirBankCZParser(CsvStatementParser):
         columns = self.columns
 
         #Normalize string
-        line = list(map(lambda s: s.strip() if isinstance(s, str) else s, line))
-
+        for i,v in enumerate(line):
+            line[i] = v.strip()
 
         if line[columns["Částka v měně účtu"]] == '':
             line[columns["Částka v měně účtu"]] = "0"
@@ -84,7 +77,7 @@ class AirBankCZParser(CsvStatementParser):
 
         StatementLine = super(AirBankCZParser, self).parse_record(line)
 
-        # Ignore lines, which do not have posting date yet (typically pmts by debet cards
+        # Ignore lines, which do not have posting date yet (typically pmts by debit cards
         # have some delays).
         if not line[columns["Datum zaúčtování"]]:
             return None
@@ -95,24 +88,24 @@ class AirBankCZParser(CsvStatementParser):
         StatementLine.id = statement.generate_transaction_id(StatementLine)
 
         # Manually set some of the known transaction types
-        payment_type = columns["Typ platby"]
-        if line[payment_type].startswith("Daň z úroku"):
+        payment_type = line[columns["Typ platby"]]
+        if payment_type.startswith("Daň z úroku"):
             StatementLine.trntype = "DEBIT"
-        elif line[payment_type].startswith("Kreditní úrok"):
+        elif payment_type.startswith("Kreditní úrok"):
             StatementLine.trntype = "INT"
-        elif line[payment_type].startswith("Poplatek za "):
+        elif payment_type.startswith("Poplatek za "):
             StatementLine.trntype = "FEE"
-        elif line[payment_type].startswith("Příchozí platba"):
+        elif payment_type.startswith("Příchozí platba"):
             StatementLine.trntype = "XFER"
-        elif line[payment_type].startswith("Odchozí platba"):
+        elif payment_type.startswith("Odchozí platba"):
             StatementLine.trntype = "XFER"
-        elif line[payment_type].startswith("Výběr hotovosti"):
+        elif payment_type.startswith("Výběr hotovosti"):
             StatementLine.trntype = "ATM"
-        elif line[payment_type].startswith("Platba kartou"):
+        elif payment_type.startswith("Platba kartou"):
             StatementLine.trntype = "POS"
-        elif line[payment_type].startswith("Inkaso"):
+        elif payment_type.startswith("Inkaso"):
             StatementLine.trntype = "DIRECTDEBIT"
-        elif line[payment_type].startswith("Trvalý"):
+        elif payment_type.startswith("Trvalý"):
             StatementLine.trntype = "REPEATPMT"
         else:
             StatementLine.trntype = "XFER"
@@ -142,23 +135,20 @@ class AirBankCZParser(CsvStatementParser):
         if float(line[columns["Poplatek v měně účtu"]]) != 0 and StatementLine.amount == 0:
             StatementLine.amount = float(line[columns["Poplatek v měně účtu"]])
 
-        # Air Bank may show various fees on the same line  as the underlying transaction
-        # For now, we simply create a new CSV file with the fee (and only the fee) moved to line[5].
-        # This new file -fees.csv needs to be processed again manually:
-        #     $ ofxstatement convert -t raiffeisencz in-fees.csv out-fees.ofx
+        # Air Bank may show various fees on the same line as the underlying transaction
+        # in case the is a fee connected with the transaction, the fee is added as different transaction
+        elif float(line[columns["Poplatek v měně účtu"]]) != 0 and StatementLine.amount != 0:
+            fee_line = list(line)
+            fee_line[columns['Částka v měně účtu']] = fee_line[columns["Poplatek v měně účtu"]]
+            fee_line[columns['Poplatek v měně účtu']] = '0'
+            fee_line[columns['Skupina plateb']] = "Poplatek za transakci"
+            fee_line[columns["Poznámka k platbě"]] = "Poplatek: " + fee_line[columns["Poznámka k platbě"]]
 
-        # ToDo: instead of exporting the above to CSV, try to add the exportline to
-        #       the end of statement (from imported input.csv).
-        if float(line[columns["Poplatek v měně účtu"]]) != 0 and StatementLine.amount != 0:
-            exportline = list(line)
-            exportline[columns['Částka v měně účtu']] = exportline[columns["Poplatek v měně účtu"]]
-            exportline[columns['Poplatek v měně účtu']] = ''
-            exportline[columns['Skupina plateb']] = "Poplatek za transakci"
-            exportline[columns["Poplatek v měně účtu"]] = "Poplatek: " + exportline[columns["Poplatek v měně účtu"]]
-
-            with open(AirBankCZPlugin.csvfile, "a", encoding=AirBankCZPlugin.encoding) as output:
-                writer = csv.writer(output, lineterminator='\n', delimiter=',', quotechar='"')
-                writer.writerow(exportline)
+            # parse the newly generated fee_line and append it to the rest of the statements
+            stmt_line = self.parse_record(fee_line)
+            if stmt_line:
+                stmt_line.assert_valid()
+                self.statement.lines.append(stmt_line)
 
         if StatementLine.amount == 0:
             return None
