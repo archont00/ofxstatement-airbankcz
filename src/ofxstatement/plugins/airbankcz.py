@@ -32,59 +32,12 @@ class AirBankCZPlugin(Plugin):
 
 
 class AirBankCZParser(CsvStatementParser):
-
-    # The columns are:
-    # 00 Datum provedení
-    # 01 Směr platby
-    # 02 Typ platby
-    # 03 Skupina plateb
-    # 04 Měna účtu
-    # 05 Částka v měně účtu
-    # 06 Poplatek v měně účtu
-    # 07 Původní měna platby
-    # 08 Původní částka platby
-    # 09 Název protistrany
-    # 10 Číslo účtu protistrany
-    # 11 Název účtu protistrany
-    # 12 Variabilní symbol
-    # 13 Konstantní symbol
-    # 14 Specifický symbol
-    # 15 Zdrojová obálka
-    # 16 Cílová obálka
-    # 17 Poznámka pro mne
-    # 18 Zpráva pro příjemce
-    # 19 Poznámka k platbě
-    # 20 Název karty
-    # 21 Číslo karty
-    # 22 Držitel karty
-    # 23 Obchodní místo
-    # 24 Směnný kurz
-    # 25 Odesílatel poslal
-    # 26 Poplatky jiných bank
-    # 27 Datum a čas zadání
-    # 28 Datum splatnosti
-    # 29 Datum schválení
-    # 30 Datum zaúčtování
-    # 31 Referenční číslo
-    # 32 Způsob zadání
-    # 33 Zadal
-    # 34 Zaúčtováno
-    # 35 Pojmenování příkazu
-    # 36 Název, adresa a stát protistrany
-    # 37 Název, adresa a stát banky protistrany
-    # 38 Typ poplatku
-    # 39 Účel platby
-    # 40 Zvláštní pokyny k platbě
-    # 41 Související platby
-
-    mappings = {"date": 0,
-                "memo": 19,
-                "payee": 9,
-                "amount": 5,
-                "check_no": 12,
-                "refnum": 31, }
-
     date_format = "%d/%m/%Y"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, *kwargs)
+        self.columns = None
+        self.mappings = None
 
     def split_records(self):
         """Return iterable object consisting of a line per transaction
@@ -103,44 +56,63 @@ class AirBankCZParser(CsvStatementParser):
                 writer = csv.writer(output, lineterminator='\n', delimiter=',', quotechar='"')
                 writer.writerow(line)
                 output.close()
+
+                # Prepare columns headers lookup table for parsing
+                self.columns = {v: i for i,v in enumerate(line)}
+                self.mappings = {
+                    "date": self.columns['Datum provedení'],
+                    "memo": self.columns['Poznámka k platbě'],
+                    "payee": self.columns['Název protistrany'],
+                    "amount": self.columns['Částka v měně účtu'],
+                    "check_no": self.columns['Variabilní symbol'],
+                    "refnum": self.columns['Referenční číslo'],
+                }
             # And skip further processing by parser
             return None
 
-        if line[5] == '':
-            line[5] = "0"
-        if line[6] == '':
-            line[6] = "0"
+        # shortcut
+        columns = self.columns
+
+        #Normalize string
+        line = list(map(lambda s: s.strip() if isinstance(s, str) else s, line))
+
+
+        if line[columns["Částka v měně účtu"]] == '':
+            line[columns["Částka v měně účtu"]] = "0"
+        if line[columns["Poplatek v měně účtu"]] == '':
+            line[columns["Poplatek v měně účtu"]] = "0"
 
         StatementLine = super(AirBankCZParser, self).parse_record(line)
 
         # Ignore lines, which do not have posting date yet (typically pmts by debet cards
         # have some delays).
-        if not line[30]:
+        if not line[columns["Datum zaúčtování"]]:
             return None
         else:
-            StatementLine.date_user = line[30]
+            StatementLine.date_user = line[columns["Datum zaúčtování"]]
             StatementLine.date_user = datetime.strptime(StatementLine.date_user, self.date_format)
 
         StatementLine.id = statement.generate_transaction_id(StatementLine)
 
         # Manually set some of the known transaction types
-        if line[2].startswith("Daň z úroku"):
+        payment_type = columns["Typ platby"]
+        if line[payment_type].startswith("Daň z úroku"):
             StatementLine.trntype = "DEBIT"
-        elif line[2].startswith("Kreditní úrok"):
+        elif line[payment_type].startswith("Kreditní úrok"):
             StatementLine.trntype = "INT"
-        elif line[2].startswith("Poplatek za "):
+        elif line[payment_type].startswith("Poplatek za "):
             StatementLine.trntype = "FEE"
-        elif line[2].startswith("Příchozí platba"):
+        elif line[payment_type].startswith("Příchozí platba"):
             StatementLine.trntype = "XFER"
-        elif line[2].startswith("Odchozí platba"):
+        elif line[payment_type].startswith("Odchozí platba"):
             StatementLine.trntype = "XFER"
-        elif line[2].startswith("Výběr hotovosti"):
+        elif line[payment_type].startswith("Výběr hotovosti"):
             StatementLine.trntype = "ATM"
-        elif line[2].startswith("Platba kartou"):
+        elif line[payment_type].startswith("Platba kartou"):
             StatementLine.trntype = "POS"
-        elif line[2].startswith("Inkaso"):
+        elif line[payment_type].startswith("Inkaso"):
             StatementLine.trntype = "DIRECTDEBIT"
-        elif line[2].startswith("Trvalý"):
+        elif line[payment_type].startswith("Trvalý"):
             StatementLine.trntype = "REPEATPMT"
         else:
             StatementLine.trntype = "XFER"
@@ -150,25 +122,25 @@ class AirBankCZParser(CsvStatementParser):
         # When .payee is empty, GnuCash imports .memo to "Description" and keeps "Notes" empty
 
         # StatementLine.payee = "Název protistrany" + "Číslo účtu protistrany"
-        if not line[10] == "":
-            StatementLine.payee = StatementLine.payee + "|ÚČ: " + line[10]
+        if line[columns["Číslo účtu protistrany"]] != "":
+            StatementLine.payee += "|ÚČ: " + line[columns["Číslo účtu protistrany"]]
 
         # StatementLine.memo = "Poznámka k platbě" + the payment identifiers
-        if not (line[12] == "" or line[12] == " "):
-            StatementLine.memo = StatementLine.memo + "|VS: " + line[12]
+        if line[columns["Variabilní symbol"]] != "":
+            StatementLine.memo += "|VS: " + line[columns["Variabilní symbol"]]
 
-        if not (line[13] == "" or line[13] == " "):
-            StatementLine.memo = StatementLine.memo + "|KS: " + line[13]
+        if line[columns["Konstantní symbol"]] != "":
+            StatementLine.memo += "|KS: " + line[columns["Konstantní symbol"]]
 
-        if not (line[14] == "" or line[14] == " "):
-            StatementLine.memo = StatementLine.memo + "|SS: " + line[14]
+        if line[columns["Specifický symbol"]] != "":
+            StatementLine.memo += "|SS: " + line[columns["Specifický symbol"]]
 
-        if not (line[20] == "" or line[20] == " "):
-            StatementLine.memo = StatementLine.memo + "|Název karty: " + line[20]
+        if line[columns["Název karty"]] != "":
+            StatementLine.memo += "|Název karty: " + line[columns["Název karty"]]
 
         # Some type of fee is standalone, not related to transaction amount. Add it to amount field.only
-        if float(line[6]) != 0 and StatementLine.amount == 0:
-            StatementLine.amount = float(line[6])
+        if float(line[columns["Poplatek v měně účtu"]]) != 0 and StatementLine.amount == 0:
+            StatementLine.amount = float(line[columns["Poplatek v měně účtu"]])
 
         # Air Bank may show various fees on the same line  as the underlying transaction
         # For now, we simply create a new CSV file with the fee (and only the fee) moved to line[5].
@@ -177,12 +149,12 @@ class AirBankCZParser(CsvStatementParser):
 
         # ToDo: instead of exporting the above to CSV, try to add the exportline to
         #       the end of statement (from imported input.csv).
-        if float(line[6]) != 0 and StatementLine.amount != 0:
-            exportline = line[:]
-            exportline[5] = line[6]
-            exportline[6] = ''
-            exportline[3] = "Poplatek za transakci"
-            exportline[19] = "Poplatek: " + exportline[19]
+        if float(line[columns["Poplatek v měně účtu"]]) != 0 and StatementLine.amount != 0:
+            exportline = list(line)
+            exportline[columns['Částka v měně účtu']] = exportline[columns["Poplatek v měně účtu"]]
+            exportline[columns['Poplatek v měně účtu']] = ''
+            exportline[columns['Skupina plateb']] = "Poplatek za transakci"
+            exportline[columns["Poplatek v měně účtu"]] = "Poplatek: " + exportline[columns["Poplatek v měně účtu"]]
 
             with open(AirBankCZPlugin.csvfile, "a", encoding=AirBankCZPlugin.encoding) as output:
                 writer = csv.writer(output, lineterminator='\n', delimiter=',', quotechar='"')
