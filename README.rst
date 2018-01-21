@@ -8,22 +8,23 @@ It is a plugin for `ofxstatement`_.
 
 .. _ofxstatement: https://github.com/kedder/ofxstatement
 
-Usage:
+Usage::
 
-    ofxstatement convert -t airbankcz airbank_1102207023_2017-06-04_12-42.csv airbank_1102207023_2017-06-04_12-42.ofx
+$ ofxstatement convert -t airbankcz airbank_1102207023_2017-06-04_12-42.csv airbank_1102207023_2017-06-04_12-42.ofx
+$ ofxstatement convert -t airbankcz:EUR airbank_1102207023_2017-06-04_12-42.csv airbank_1102207023_2017-06-04_12-42.ofx
 
-    ofxstatement convert -t airbankcz:EUR airbank_1102207023_2017-06-04_12-42.csv airbank_1102207023_2017-06-04_12-42.ofx
+Configuration::
 
-Configuration:
+$ ofxstatement edit-config
 
-    ofxstatement edit-config
+and set e.g. the following::
 
-and set e.g. the following
+[airbankcz]
+plugin = airbankcz
+currency = CZK
+account = Air Bank CZK
 
-    [airbankcz:EUR]
-
-    plugin = airbankcz
-
-    currency = EUR
-
-    account = Air Bank EUR
+[airbankcz:EUR]
+plugin = airbankcz
+currency = EUR
+account = Air Bank EUR
