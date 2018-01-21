@@ -2,7 +2,7 @@ This is a parser for CSV transaction history exported from Air Bank a.s. (Czech 
 from within the report in Account History (CSV).
 
 The expected field separator is comma (",") and character encoding UTF-8
-(this can be done in Settings / Applications of the internet banking).
+(have a look at Settings / Applications of the internet banking).
 
 It is a plugin for `ofxstatement`_.
 

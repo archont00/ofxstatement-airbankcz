@@ -9,15 +9,9 @@ from ofxstatement.plugin import Plugin
 
 class AirBankCZPlugin(Plugin):
     """Air Bank a.s. (Czech Republic) (CSV, UTF-8)
-    NB: if there are any transaction related fees (column 06), a new CSV
-        file is created and it has to be processed again:
-        $ ofxstatement convert -t airbankcz in-fees.csv out-fees.ofx
     """
 
     def get_parser(self, filename):
-        # .csvfile is a work-around and is used for exporting fees to a new CSV file
-        AirBankCZPlugin.csvfile = re.sub(".csv", "", filename) + "-fees.csv"
-
         # Encoding may be set in Air Bank internet banking (Settings / Applications)
         AirBankCZPlugin.encoding = self.settings.get('charset', 'utf-8')
         f = open(filename, "r", encoding=AirBankCZPlugin.encoding)
@@ -63,10 +57,10 @@ class AirBankCZParser(CsvStatementParser):
             # And skip further processing by parser
             return None
 
-        # shortcut
+        # Shortcut
         columns = self.columns
 
-        #Normalize string
+        # Normalize string
         for i,v in enumerate(line):
             line[i] = v.strip()
 
@@ -135,8 +129,8 @@ class AirBankCZParser(CsvStatementParser):
         if float(line[columns["Poplatek v měně účtu"]]) != 0 and StatementLine.amount == 0:
             StatementLine.amount = float(line[columns["Poplatek v měně účtu"]])
 
-        # Air Bank may show various fees on the same line as the underlying transaction
-        # in case the is a fee connected with the transaction, the fee is added as different transaction
+        # Air Bank may show various fees on the same line as the underlying transaction.
+        # In case there is a fee connected with the transaction, the fee is added as different transaction
         elif float(line[columns["Poplatek v měně účtu"]]) != 0 and StatementLine.amount != 0:
             fee_line = list(line)
             fee_line[columns['Částka v měně účtu']] = fee_line[columns["Poplatek v měně účtu"]]
