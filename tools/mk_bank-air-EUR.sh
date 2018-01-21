@@ -3,11 +3,7 @@
 # This is a wrapper for
 #   ofxstatement convert -t airbankcz input.csv output.ofx
 # which:
-# - if there is any input-fees.csv, it runs again
-# - reformats output.ofx to be human readable
-
-# ToDo:
-# - merge input-fees.ofx with output.ofx
+# - reformats output.ofx to be human readable (structured and in UTF-8)
 
 # Dependency:
 # - bash
@@ -33,21 +29,9 @@ inputd="$(dirname "${1}")"
 
 # Run ofxstatement 
 ofxstatement convert -t airbankcz:EUR "${1}" "${inputd}/${inputf}.ofx" \
-  || { echo "ofxstatement 1 failed."; exit 1; }
+  || { echo "ofxstatement for ${1} failed."; exit 1; }
 
 
 tmpf="$(uuidgen)"
 cat "${inputd}/${inputf}.ofx" | xmllint --format --encode UTF-8 - > "${inputd}/${tmpf}"
 mv "${inputd}/${tmpf}" "${inputd}/${inputf}.ofx"
-
-feesf="${inputd}/${inputf}-fees.csv"
-if [[ -f "${feesf}" ]]; then
-  if [[ $(cat "${feesf}" | wc -l) -gt 1 ]]; then
-    ofxstatement convert -t airbankcz:EUR "${feesf}" "${inputd}/${inputf}-fees.ofx" \
-      || { echo "ofxstatement 2 failed."; exit 1; }
-  fi
-  rm "${feesf}" "${inputd}/${inputf}-fees-fees.csv"
-  tmpf="$(uuidgen)"
-  cat "${inputd}/${inputf}-fees.ofx" | xmllint --format --encode UTF-8 - > "${inputd}/${tmpf}"
-  mv "${inputd}/${tmpf}" "${inputd}/${inputf}-fees.ofx"
-fi
