@@ -48,7 +48,7 @@ class AirBankCZParser(CsvStatementParser):
             self.columns = {v: i for i,v in enumerate(line)}
             self.mappings = {
                 "date": self.columns['Datum provedení'],
-                "memo": self.columns['Poznámka k platbě'],
+                "memo": self.columns['Poznámka k úhradě'],
                 "payee": self.columns['Název protistrany'],
                 "amount": self.columns['Částka v měně účtu'],
                 "check_no": self.columns['Variabilní symbol'],
@@ -82,16 +82,16 @@ class AirBankCZParser(CsvStatementParser):
         StatementLine.id = statement.generate_transaction_id(StatementLine)
 
         # Manually set some of the known transaction types
-        payment_type = line[columns["Typ platby"]]
+        payment_type = line[columns["Typ úhrady"]]
         if payment_type.startswith("Daň z úroku"):
             StatementLine.trntype = "DEBIT"
         elif payment_type.startswith("Kreditní úrok"):
             StatementLine.trntype = "INT"
         elif payment_type.startswith("Poplatek za "):
             StatementLine.trntype = "FEE"
-        elif payment_type.startswith("Příchozí platba"):
+        elif payment_type.startswith("Příchozí úhrada"):
             StatementLine.trntype = "XFER"
-        elif payment_type.startswith("Odchozí platba"):
+        elif payment_type.startswith("Odchozí úhrada"):
             StatementLine.trntype = "XFER"
         elif payment_type.startswith("Výběr hotovosti"):
             StatementLine.trntype = "ATM"
@@ -102,6 +102,7 @@ class AirBankCZParser(CsvStatementParser):
         elif payment_type.startswith("Trvalý"):
             StatementLine.trntype = "REPEATPMT"
         else:
+            print("WARN: Unexpected type of payment appeared - \"{}\". Using XFER transaction type instead".format(payment_type))
             StatementLine.trntype = "XFER"
 
         # .payee becomes OFX.NAME which becomes "Description" in GnuCash
@@ -112,7 +113,7 @@ class AirBankCZParser(CsvStatementParser):
         if line[columns["Číslo účtu protistrany"]] != "":
             StatementLine.payee += "|ÚČ: " + line[columns["Číslo účtu protistrany"]]
 
-        # StatementLine.memo = "Poznámka k platbě" + the payment identifiers
+        # StatementLine.memo = "Poznámka k úhradě" + the payment identifiers
         if line[columns["Variabilní symbol"]] != "":
             StatementLine.memo += "|VS: " + line[columns["Variabilní symbol"]]
 
@@ -136,7 +137,7 @@ class AirBankCZParser(CsvStatementParser):
             fee_line[columns['Částka v měně účtu']] = fee_line[columns["Poplatek v měně účtu"]]
             fee_line[columns['Poplatek v měně účtu']] = '0'
             fee_line[columns['Skupina plateb']] = "Poplatek za transakci"
-            fee_line[columns["Poznámka k platbě"]] = "Poplatek: " + fee_line[columns["Poznámka k platbě"]]
+            fee_line[columns["Poznámka k úhradě"]] = "Poplatek: " + fee_line[columns["Poznámka k úhradě"]]
 
             # parse the newly generated fee_line and append it to the rest of the statements
             stmt_line = self.parse_record(fee_line)
