@@ -91,6 +91,8 @@ class AirBankCZParser(CsvStatementParser):
             StatementLine.trntype = "FEE"
         elif payment_type.startswith("Příchozí úhrada"):
             StatementLine.trntype = "XFER"
+        elif payment_type.startswith("Vrácení peněz"):
+            StatementLine.trntype = "XFER"
         elif payment_type.startswith("Odchozí úhrada"):
             StatementLine.trntype = "XFER"
         elif payment_type.startswith("Výběr hotovosti"):
