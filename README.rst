@@ -33,3 +33,12 @@ and set e.g. the following:
   plugin = airbankcz
   currency = EUR
   account = Air Bank EUR
+
+Issues
+======
+
+Airbank seems to continueously change the column titles of the Account
+History and also the payment types or categories.
+
+If this happens, the conversion may fail. Feel free to create GitHub pull
+request to accomodate for the changes.
