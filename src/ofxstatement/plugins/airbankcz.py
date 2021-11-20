@@ -138,7 +138,7 @@ class AirBankCZParser(CsvStatementParser):
             fee_line = list(line)
             fee_line[columns['Částka v měně účtu']] = fee_line[columns["Poplatek v měně účtu"]]
             fee_line[columns['Poplatek v měně účtu']] = '0'
-            fee_line[columns['Skupina plateb']] = "Poplatek za transakci"
+            fee_line[columns['Kategorie plateb']] = "Poplatek za transakci"
             fee_line[columns["Poznámka k úhradě"]] = "Poplatek: " + fee_line[columns["Poznámka k úhradě"]]
 
             # parse the newly generated fee_line and append it to the rest of the statements
